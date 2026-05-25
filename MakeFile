@@ -1,0 +1,15 @@
+CC = gcc
+CFLAGS = -Wall -Wextra -g -Iinclude
+
+SRC = src/main.c src/server.c src/protocol.c
+OUT = build/telemetry_server
+
+all:
+	mkdir -p build
+	$(CC) $(CFLAGS) $(SRC) -o $(OUT)
+
+run: all
+	./$(OUT) 9000
+
+clean:
+	rm -rf build

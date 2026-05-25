@@ -1,0 +1,5 @@
+build/
+*.o
+*.out
+data/*.csv
+!data/sample_telemetry.csv
