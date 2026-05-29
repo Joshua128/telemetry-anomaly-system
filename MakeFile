@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g -Iinclude
 
-SRC = src/main.c src/server.c src/protocol.c
+SRC = src/main.c src/server.c src/protocol.c src/client.c src/telemetry.c
 OUT = build/telemetry_server
 
 all:

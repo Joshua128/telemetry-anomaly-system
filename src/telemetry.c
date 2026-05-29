@@ -1,9 +1,11 @@
 #include <stdio.h> 
-#include "telementary.h"
+#include "telemetry.h"
 #include "protocol.h"
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
+#include <stdlib.h>
 //Creates normal and abnormal telemetry messages 
 
 
@@ -43,11 +45,8 @@ void generate_telemetry_message(TelemetryMessage *msg){
         clamp(&msg->temperature, -50.0, 150.0);
         msg->latency_ms += (generate_random_value() - 0.5) * 200.0; // Spike of up to +-100 ms
         if(msg->latency_ms < 0) msg->latency_ms = 0;
-        
+        clamp(&msg->latency_ms, 0.0, 500.0); // Clamp latency to reasonable range
         
     }
-
-    
-
 }
 

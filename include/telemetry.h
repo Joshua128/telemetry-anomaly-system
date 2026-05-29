@@ -12,5 +12,9 @@ typedef struct {
     int is_anomaly;
 } TelemetryMessage;
 
+void generate_telemetry_message(TelemetryMessage *msg);
+void generate_normalVariable(double mean, double stddev, double *out_value);
+void clamp(double *value, double min, double max);
+
 
 #endif
