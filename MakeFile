@@ -1,15 +1,22 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -g -Iinclude
+CFLAGS = -Wall -Wextra -g -Iinclude -pthread
+LDFLAGS = -pthread -lm
 
-SRC = src/main.c src/server.c src/protocol.c src/client.c src/telemetry.c
-OUT = build/telemetry_server
+SERVER_SRC = src/server_main.c src/server.c src/protocol.c src/telemetry.c
+CLIENT_SRC = src/client_main.c src/client.c src/protocol.c src/telemetry.c
 
-all:
+SERVER_OUT = build/server
+CLIENT_OUT = build/client
+
+all: $(SERVER_OUT) $(CLIENT_OUT)
+
+$(SERVER_OUT): $(SERVER_SRC)
 	mkdir -p build
-	$(CC) $(CFLAGS) $(SRC) -o $(OUT) -lm
+	$(CC) $(CFLAGS) $(SERVER_SRC) -o $(SERVER_OUT) $(LDFLAGS)
 
-run: all
-	./$(OUT) 9000
+$(CLIENT_OUT): $(CLIENT_SRC)
+	mkdir -p build
+	$(CC) $(CFLAGS) $(CLIENT_SRC) -o $(CLIENT_OUT) $(LDFLAGS)
 
 clean:
 	rm -rf build

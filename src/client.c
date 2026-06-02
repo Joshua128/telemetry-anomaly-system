@@ -7,7 +7,7 @@
 #include "protocol.h"
 #include <unistd.h>
 #include <arpa/inet.h>
-
+#include <pthread.h>
 
 void generate_message(char *buffer, size_t buffer_sz){
     TelemetryMessage msg;
@@ -15,11 +15,14 @@ void generate_message(char *buffer, size_t buffer_sz){
     protocol_encode_text(&msg, buffer, buffer_sz);
 } 
 
+//Client main is the function each client will use when set up on a seperate thread eventually.
+
 
 
 int client_main(){
     int socket_fd;
     struct sockaddr_in server_addr;
+    char buffer[256];
     // Create a socket
     socket_fd = socket(AF_INET,SOCK_STREAM,0);
     if(socket_fd < 0){
@@ -29,7 +32,7 @@ int client_main(){
     // Set up the server address structure
     memset(&server_addr,0,sizeof(server_addr));
     server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1"); //Represents local host
+    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     server_addr.sin_port = htons(8080);
     // Connect to the server
     if(connect(socket_fd,(struct sockaddr *)&server_addr,sizeof(server_addr)) < 0){
@@ -38,14 +41,17 @@ int client_main(){
     }
     printf("Connected to server!\n");
     // Send telemetry messages to the server
-    char buffer[256];
+
     for(int i = 0; i < 10; i++){
-        generate_message(buffer, sizeof(buffer));
-        send(socket_fd, buffer, strlen(buffer), 0);
-        printf("Sent message: %s\n", buffer);
-        sleep(1); // Wait for a second before sending the next message
+        generate_message(buffer,sizeof(buffer));
+        if(send(socket_fd,buffer,strlen(buffer),0) < 0){ //dont need mutex here since server doesnt care about message order and each client has its own socket
+            perror("send failed");
+            return -1;
+        }
+        sleep(1); 
     }
     close(socket_fd);
     return 0;
 }
+
 

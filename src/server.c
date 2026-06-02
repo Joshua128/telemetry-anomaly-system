@@ -6,6 +6,69 @@
 #include "protocol.h"
 #include <stdio.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <arpa/inet.h>
+
+pthread_mutex_t csv_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex for synchronizing access to the CSV file
+
+
+int write_server_csv(const TelemetryMessage *msg){
+    pthread_mutex_lock(&csv_mutex);
+    FILE *fp = fopen("data/telemetry_data.csv", "a");
+    if(fp == NULL){
+        perror("Failed to open file");
+        pthread_mutex_unlock(&csv_mutex);
+        return -1;
+    }
+    fprintf(fp, "%ld,%d,%.2f,%.2f,%.2f,%d,%d\n",
+            msg->timestamp,
+            msg->device_id,
+            msg->temperature,
+            msg->cpu_usage,
+            msg->latency_ms,
+            msg->error_count,
+            msg->is_anomaly);
+    fclose(fp);
+    pthread_mutex_unlock(&csv_mutex);
+    return 0;
+
+}
+
+void *handle_client(void *arg){
+    int client_fd = (intptr_t)arg;
+    char buffer[256];
+    while(1){
+        ssize_t bytes_recv = recv(client_fd,buffer,sizeof(buffer)-1,0);
+        if(bytes_recv < 0){
+            perror("recv failed");
+            close(client_fd);
+            return NULL;
+        } else if(bytes_recv == 0){
+            printf("Client disconnected.\n");
+            close(client_fd);
+            return NULL;
+        }
+        buffer[bytes_recv] = '\0'; // Null-terminate the received data
+        TelemetryMessage msg; 
+        if(protocol_decode_text(buffer,&msg) == 7){
+            if(protocol_validate_message(&msg)){
+                printf("Received valid message: %s\n", buffer);
+                //Write to a csv file
+                if(write_server_csv(&msg) < 0){
+                    printf("Failed to write message to CSV: %s\n", buffer);
+                }
+        }
+        } else {
+            printf("Failed to decode message: %s\n", buffer);
+        }
+    }
+    close(client_fd);
+    return NULL;
+}
+
+
+
+
 int server_start(){
 
     int socket_fd;
@@ -32,7 +95,7 @@ int server_start(){
         return -1;
     }
     printf("Server is listening on port 8080...\n");
-    // Accept incoming connections
+    // Accept incoming connections by creating a new thread for each client that connects
     while(1){
         int client_fd;
         client_fd = accept(socket_fd,NULL,NULL);
@@ -40,37 +103,17 @@ int server_start(){
             perror("accept failed");
             return -1;
         }
-        printf("Client connected!\n");
         
-
-        //handle telemetry messages from client conencted
-        char buffer[256];
-        while(1){
-            ssize_t bytes_recv = recv(client_fd,buffer,sizeof(buffer)-1,0);
-            if(bytes_recv < 0){
-                perror("recv failed");
-                break;
-            } else if(bytes_recv == 0){
-                printf("Client disconnected.\n");
-                break;
-            }
-            buffer[bytes_recv] = '\0'; // Null-terminate the received data
-            TelemetryMessage msg; 
-            if(protocol_decode_text(buffer,&msg) == 7){
-                if(protocol_validate_message(&msg)){
-                    printf("Received valid message: %s\n", buffer);
-                } else {
-                    printf("Received invalid message: %s\n", buffer);
-                }
-            } else {
-                printf("Failed to decode message: %s\n", buffer);
-            }
+        pthread_t client_thread_id;
+        if(pthread_create(&client_thread_id,NULL,handle_client,(void *)(intptr_t)client_fd) != 0){
+            perror("Failed to create client thread");
+            close(client_fd);
+            continue;
         }
-
-        close(client_fd);
-        break;  //One client for now, breaks on disconnect
-
+        pthread_detach(client_thread_id); // Detach the thread to allow it to run independently
+        
     }
+
 
     close(socket_fd);
     return 0;

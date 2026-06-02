@@ -8,17 +8,11 @@
 #include "server.h"
 #include "client.h"
 #include <unistd.h>
+#include <pthread.h>
 
 int main(){
     // Start the server in a separate thread or process
-    if(fork() == 0){
-        server_start();
-        return 0;
-    }
-    // Give the server a moment to start up
-    sleep(1);
-    // Run the client to send telemetry messages
-    client_main();
+    server_start(); // This will block and run the server loop
     return 0;
 }
 
