@@ -63,13 +63,23 @@ def poll_csv(path, poll_interval=1.0):
         time.sleep(poll_interval)
 
 
-#truth_table is the predict_proba 
-def calculate_average_confidence(y_real, truth_table):
-    #need to group in case of y_true = 1 and y_true = 0 as they have diff conf. dist
-    truth_df = pd.DataFrame({"y_true": y_real, "y_pred": truth_table})
-    grouped = truth_df.groupby("y_true")["y_pred"].mean()
 
-    return (grouped.get(1,0),grouped.get(0,0))
+def calculate_average_confidence(y_true, probabilities, classes):
+    y_true = y_true.to_numpy()
+
+    normal_col = list(classes).index(0)
+    anomaly_col = list(classes).index(1)
+
+    normal_probs = probabilities[:, normal_col]
+    anomaly_probs = probabilities[:, anomaly_col]
+
+    anomaly_mask = y_true == 1
+    normal_mask = y_true == 0
+
+    avg_anomaly_conf = anomaly_probs[anomaly_mask].mean() if anomaly_mask.any() else 0.0
+    avg_normal_conf = normal_probs[normal_mask].mean() if normal_mask.any() else 0.0
+
+    return avg_anomaly_conf, avg_normal_conf
     
     
 
@@ -121,15 +131,15 @@ def perform_anomaly_detection(df):
     model = LogisticRegression(max_iter=1000)
     model.fit(X_train, y_train)
 
-    predictions = model.predict(X_test)
+    #predictions = model.predict(X_test)
 
-    return y_test, model.predict_proba(X_test)
+    return y_test, model.predict_proba(X_test), model.classes_
 
 
 def eval_summary(df):
-    y_true, predictions,proba = perform_anomaly_detection(df)
+    y_true, predictions, classes = perform_anomaly_detection(df)
 
-    one_conf_avg, zero_conf_avg = calculate_average_confidence(y_true, proba) #might need [:,1] to get the anomaly confidence
+    one_conf_avg, zero_conf_avg = calculate_average_confidence(y_true, predictions, classes) #might need [:,1] to get the anomaly confidence
 
     print("-" * 40)
     print(f"Rows seen: {len(df)}")
